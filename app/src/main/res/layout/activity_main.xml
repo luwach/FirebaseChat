@@ -7,17 +7,17 @@
     android:padding="@dimen/activity_horizontal_margin"
     tools:context="com.firebase.chatapplication.MainActivity">
 
-    <ListView
-        android:id="@+id/messageListView"
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/messageRecyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:divider="@android:color/transparent"
         android:stackFromBottom="true"
-        android:transcriptMode="alwaysScroll"
+        app:layoutManager="android.support.v7.widget.LinearLayoutManager"
         app:layout_constraintBottom_toTopOf="@+id/messageEditText"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
+        app:stackFromEnd="true"
         tools:listitem="@layout/item_message" />
 
     <ImageButton
@@ -25,6 +25,7 @@
         android:layout_width="36dp"
         android:layout_height="36dp"
         android:background="@android:drawable/ic_menu_gallery"
+        android:onClick="onClickUploadImage"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
@@ -41,6 +42,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:enabled="false"
+        android:onClick="onClickSendButton"
         android:text="@string/send_button_label"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
