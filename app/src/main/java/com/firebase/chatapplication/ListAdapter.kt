@@ -35,6 +35,10 @@ class ListAdapter : RecyclerView.Adapter<ListAdapter.DataViewHolder>() {
         data.add(message)
         notifyDataSetChanged()
     }
+
+    fun clearData() {
+        data.clear()
+    }
 }
 
 //val isPhoto = message!!.photoUrl != null
