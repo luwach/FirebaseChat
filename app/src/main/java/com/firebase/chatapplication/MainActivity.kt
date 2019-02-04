@@ -7,6 +7,7 @@ import android.text.Editable
 import android.text.InputFilter
 import android.text.TextWatcher
 import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.Toast
@@ -138,6 +139,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem?): Boolean = when (item?.itemId) {
+        R.id.sign_out_menu -> {
+            AuthUI.getInstance().signOut(this)
+            true
+        }
+        else -> super.onOptionsItemSelected(item)
+    }
+
     fun onClickSendButton(view: View) {
         val message = Message(messageEditText.text.toString(), username, null)
         databaseReference.push().setValue(message)
@@ -147,11 +161,5 @@ class MainActivity : AppCompatActivity() {
 
     fun onClickUploadImage(view: View) {
         // TODO: Fire an intent to show an image picker
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        val inflater = menuInflater
-        inflater.inflate(R.menu.main_menu, menu)
-        return true
     }
 }
