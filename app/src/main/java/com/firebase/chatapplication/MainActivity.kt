@@ -11,6 +11,9 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.Toast
+import com.firebase.chatapplication.Constants.ANONYMOUS
+import com.firebase.chatapplication.Constants.DEFAULT_MSG_LENGTH_LIMIT
+import com.firebase.chatapplication.Constants.RC_SIGN_IN
 import com.firebase.ui.auth.AuthUI
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
@@ -18,11 +21,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
 
-    private var username: String = ""
-    private val ANONYMOUS = "anonymous"
-    private var DEFAULT_MSG_LENGTH_LIMIT = 1000
-    private val RC_SIGN_IN = 1
-
+    private var username = ""
     private lateinit var listAdapter: ListAdapter
 
     private lateinit var firebaseDatabase: FirebaseDatabase
