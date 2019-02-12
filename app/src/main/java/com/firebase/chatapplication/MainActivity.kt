@@ -60,22 +60,25 @@ class MainActivity : AppCompatActivity() {
         authStateListener = FirebaseAuth.AuthStateListener {
             val user = it.currentUser
 
-            if (user != null) {
-                onSignedInInitialize(user.displayName)
-            } else {
-                onSignedOutCleanUp()
+            when (user) {
+                null -> {
+                    onSignedOutCleanUp()
 
-                val providers = mutableListOf(
-                        AuthUI.IdpConfig.EmailBuilder().build(),
-                        AuthUI.IdpConfig.GoogleBuilder().build())
+                    val providers = mutableListOf(
+                            AuthUI.IdpConfig.EmailBuilder().build(),
+                            AuthUI.IdpConfig.GoogleBuilder().build())
 
-                // Create and launch sign-in intent
-                startActivityForResult(
-                        AuthUI.getInstance()
-                                .createSignInIntentBuilder()
-                                .setIsSmartLockEnabled(false)
-                                .setAvailableProviders(providers)
-                                .build(), RC_SIGN_IN)
+                    // Create and launch sign-in intent
+                    startActivityForResult(
+                            AuthUI.getInstance()
+                                    .createSignInIntentBuilder()
+                                    .setIsSmartLockEnabled(false)
+                                    .setAvailableProviders(providers)
+                                    .setTheme(R.style.ThemeOverlay_AppCompat_Dark)
+                                    .setLogo(R.drawable.ic_android)
+                                    .build(), RC_SIGN_IN)
+                }
+                else -> onSignedInInitialize(user.displayName)
             }
         }
     }
