@@ -4,7 +4,9 @@ import android.support.v7.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
+import com.squareup.picasso.Picasso
 import kotlinx.android.synthetic.main.item_message.view.*
 
 class ListAdapter : RecyclerView.Adapter<ListAdapter.DataViewHolder>() {
@@ -18,8 +20,19 @@ class ListAdapter : RecyclerView.Adapter<ListAdapter.DataViewHolder>() {
     }
 
     override fun onBindViewHolder(holder: DataViewHolder, position: Int) {
-        holder.text.text = data[position].text
         holder.name.text = data[position].name
+
+        if (data[position].photoUrl != null) {
+            holder.text.visibility = View.GONE
+            holder.photo.visibility = View.VISIBLE
+            Picasso.get()
+                    .load(data[position].photoUrl)
+                    .into(holder.photo)
+        } else {
+            holder.text.visibility = View.VISIBLE
+            holder.photo.visibility = View.GONE
+            holder.text.text = data[position].text
+        }
     }
 
     override fun getItemCount(): Int {
@@ -29,6 +42,7 @@ class ListAdapter : RecyclerView.Adapter<ListAdapter.DataViewHolder>() {
     inner class DataViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val text: TextView = view.messageTextView
         val name: TextView = view.nameTextView
+        val photo: ImageView = view.photoImageView
     }
 
     fun swapData(message: Message) {
@@ -40,17 +54,3 @@ class ListAdapter : RecyclerView.Adapter<ListAdapter.DataViewHolder>() {
         data.clear()
     }
 }
-
-//val isPhoto = message!!.photoUrl != null
-//if (isPhoto) {
-//    messageTextView.visibility = View.GONE
-//    photoImageView.visibility = View.VISIBLE
-//    Glide.with(photoImageView.context)
-//            .load(message.photoUrl)
-//            .into(photoImageView)
-//} else {
-//    messageTextView.visibility = View.VISIBLE
-//    photoImageView.visibility = View.GONE
-//    messageTextView.text = message.text
-//}
-//authorTextView.text = message.name
