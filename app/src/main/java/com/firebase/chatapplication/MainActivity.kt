@@ -13,10 +13,13 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import com.firebase.chatapplication.Constants.ANONYMOUS
 import com.firebase.chatapplication.Constants.DEFAULT_MSG_LENGTH_LIMIT
+import com.firebase.chatapplication.Constants.RC_PHOTO_PICKER
 import com.firebase.chatapplication.Constants.RC_SIGN_IN
 import com.firebase.ui.auth.AuthUI
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageReference
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
@@ -27,6 +30,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var firebaseDatabase: FirebaseDatabase
     private lateinit var databaseReference: DatabaseReference
     private lateinit var firebaseAuth: FirebaseAuth
+    private lateinit var firebaseStorage: FirebaseStorage
+    private lateinit var storageReference: StorageReference
     private var childEventListener: ChildEventListener? = null
     private var authStateListener: FirebaseAuth.AuthStateListener? = null
 
@@ -38,8 +43,10 @@ class MainActivity : AppCompatActivity() {
 
         firebaseDatabase = FirebaseDatabase.getInstance()
         firebaseAuth = FirebaseAuth.getInstance()
+        firebaseStorage = FirebaseStorage.getInstance()
 
         databaseReference = firebaseDatabase.reference.child("messages")
+        storageReference = firebaseStorage.reference.child("chat_photos")
 
         listAdapter = ListAdapter()
         messageRecyclerView.adapter = listAdapter
@@ -85,14 +92,29 @@ class MainActivity : AppCompatActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == RC_SIGN_IN) {
-            when (resultCode) {
-                RESULT_OK -> Toast.makeText(this, "Signed in!", Toast.LENGTH_SHORT).show()
-                RESULT_CANCELED -> {
-                    Toast.makeText(this, "Signed in canceled!", Toast.LENGTH_SHORT).show()
-                    finish()
+        when (requestCode) {
+            RC_SIGN_IN ->
+                when (resultCode) {
+                    RESULT_OK -> Toast.makeText(this, "Signed in!", Toast.LENGTH_SHORT).show()
+                    RESULT_CANCELED -> {
+                        Toast.makeText(this, "Signed in canceled!", Toast.LENGTH_SHORT).show()
+                        finish()
+                    }
                 }
-            }
+            RC_PHOTO_PICKER ->
+                when (resultCode) {
+                    RESULT_OK -> {
+                        val selectedImageUri = data?.data
+                        val photoRef = storageReference.child(selectedImageUri?.lastPathSegment!!)
+
+                        photoRef.putFile(selectedImageUri).addOnSuccessListener { taskSnapshot ->
+                            taskSnapshot.metadata?.reference?.downloadUrl?.addOnSuccessListener { uri ->
+                                val message = Message(null, username, uri.toString())
+                                databaseReference.push().setValue(message)
+                            }
+                        }
+                    }
+                }
         }
     }
 
@@ -162,6 +184,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun onClickUploadImage(view: View) {
-        // TODO: Fire an intent to show an image picker
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "image/jpeg"
+            putExtra(Intent.EXTRA_LOCAL_ONLY, true)
+        }
+        startActivityForResult(Intent.createChooser(intent, "Complete action using"), RC_PHOTO_PICKER)
     }
 }
