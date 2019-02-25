@@ -12,6 +12,7 @@ import kotlinx.android.synthetic.main.item_message.view.*
 class ListAdapter : RecyclerView.Adapter<ListAdapter.DataViewHolder>() {
 
     private val data = ArrayList<Message>()
+    var onItemClick: ((String) -> Unit)? = null
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ListAdapter.DataViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -43,6 +44,10 @@ class ListAdapter : RecyclerView.Adapter<ListAdapter.DataViewHolder>() {
         val text: TextView = view.messageTextView
         val name: TextView = view.nameTextView
         val photo: ImageView = view.photoImageView
+
+        init {
+            photo.setOnClickListener { onItemClick?.invoke(data[adapterPosition].photoUrl!!) }
+        }
     }
 
     fun swapData(message: Message) {

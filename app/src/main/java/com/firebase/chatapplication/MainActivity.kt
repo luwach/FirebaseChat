@@ -51,8 +51,6 @@ class MainActivity : AppCompatActivity() {
         listAdapter = ListAdapter()
         messageRecyclerView.adapter = listAdapter
 
-        progressBar.visibility = ProgressBar.INVISIBLE
-
         messageEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(charSequence: CharSequence, i: Int, i1: Int, i2: Int) {}
 
@@ -63,6 +61,8 @@ class MainActivity : AppCompatActivity() {
             override fun afterTextChanged(editable: Editable) {}
         })
         messageEditText.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(DEFAULT_MSG_LENGTH_LIMIT))
+
+        listAdapter.onItemClick = { photoUrl -> Toast.makeText(this, photoUrl, Toast.LENGTH_SHORT).show() }
 
         authStateListener = FirebaseAuth.AuthStateListener {
             val user = it.currentUser
@@ -138,6 +138,8 @@ class MainActivity : AppCompatActivity() {
             override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
                 val message = dataSnapshot.getValue<Message>(Message::class.java)
                 message?.let { listAdapter.swapData(it) }
+
+                progressBar.visibility = ProgressBar.INVISIBLE
             }
 
             override fun onChildChanged(dataSnapshot: DataSnapshot, s: String?) {}
