@@ -2,6 +2,7 @@ package com.firebase.chatapplication
 
 import android.support.v7.widget.RecyclerView
 import android.view.LayoutInflater
+import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -12,7 +13,7 @@ import kotlinx.android.synthetic.main.item_message.view.*
 class ListAdapter : RecyclerView.Adapter<ListAdapter.DataViewHolder>() {
 
     private val data = ArrayList<Message>()
-    var onItemClick: ((String) -> Unit)? = null
+    var onDeleteClick: ((String) -> Unit)? = null
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ListAdapter.DataViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -46,7 +47,15 @@ class ListAdapter : RecyclerView.Adapter<ListAdapter.DataViewHolder>() {
         val photo: ImageView = view.photoImageView
 
         init {
-            photo.setOnClickListener { onItemClick?.invoke(data[adapterPosition].photoUrl!!) }
+            photo.setOnCreateContextMenuListener { contextMenu, _, _ ->
+                contextMenu.setHeaderTitle("SelectAction")
+                val delete = contextMenu.add(Menu.NONE, 1, 1, "Delete")
+
+                delete.setOnMenuItemClickListener {
+                    onDeleteClick?.invoke(data[adapterPosition].photoUrl!!)
+                    true
+                }
+            }
         }
     }
 

@@ -62,7 +62,10 @@ class MainActivity : AppCompatActivity() {
         })
         messageEditText.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(DEFAULT_MSG_LENGTH_LIMIT))
 
-        listAdapter.onItemClick = { photoUrl -> Toast.makeText(this, photoUrl, Toast.LENGTH_SHORT).show() }
+        listAdapter.onDeleteClick = { photoUrl ->
+            val photoRef = firebaseStorage.getReferenceFromUrl(photoUrl)
+            photoRef.delete().addOnSuccessListener { Toast.makeText(this, "File deleted", Toast.LENGTH_SHORT).show() }
+        }
 
         authStateListener = FirebaseAuth.AuthStateListener {
             val user = it.currentUser
@@ -190,6 +193,6 @@ class MainActivity : AppCompatActivity() {
             type = "image/jpeg"
             putExtra(Intent.EXTRA_LOCAL_ONLY, true)
         }
-        startActivityForResult(Intent.createChooser(intent, "Complete action using"), RC_PHOTO_PICKER)
+        startActivityForResult(Intent.createChooser(intent, "Complete action"), RC_PHOTO_PICKER)
     }
 }
