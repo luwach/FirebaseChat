@@ -2,6 +2,7 @@ package com.firebase.chatapplication
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
 import android.support.v7.app.AppCompatActivity
 import android.text.Editable
 import android.text.InputFilter
@@ -51,24 +52,8 @@ class MainActivity : AppCompatActivity() {
         listAdapter = ListAdapter()
         messageRecyclerView.adapter = listAdapter
 
-        messageEditText.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(charSequence: CharSequence, i: Int, i1: Int, i2: Int) {}
-
-            override fun onTextChanged(charSequence: CharSequence, i: Int, i1: Int, i2: Int) {
-                sendButton.isEnabled = charSequence.toString().trim { it <= ' ' }.isNotEmpty()
-            }
-
-            override fun afterTextChanged(editable: Editable) {}
-        })
-        messageEditText.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(DEFAULT_MSG_LENGTH_LIMIT))
-
-        listAdapter.onDeleteClick = { photoUrl, key ->
-            val photoRef = firebaseStorage.getReferenceFromUrl(photoUrl)
-            photoRef.delete().addOnSuccessListener {
-                databaseReference.child(key).removeValue()
-                Toast.makeText(this, "File deleted", Toast.LENGTH_SHORT).show()
-            }
-        }
+        messageTextWatcher()
+        deletePhoto()
 
         authStateListener = FirebaseAuth.AuthStateListener {
             val user = it.currentUser
@@ -113,15 +98,45 @@ class MainActivity : AppCompatActivity() {
                         val selectedImageUri = data?.data
                         val photoRef = storageReference.child(selectedImageUri?.lastPathSegment!!)
 
-                        photoRef.putFile(selectedImageUri).addOnSuccessListener { taskSnapshot ->
-                            taskSnapshot.metadata?.reference?.downloadUrl?.addOnSuccessListener { uri ->
-                                val message = Message(null, username, uri.toString())
-                                databaseReference.push().setValue(message)
-                            }
-                        }
+                        photoRef.putFile(selectedImageUri)
+                                .addOnSuccessListener { taskSnapshot ->
+
+                                    Handler().postDelayed({ downloadProgress.progress = 0 }, 5000)
+
+                                    taskSnapshot.metadata?.reference?.downloadUrl?.addOnSuccessListener { uri ->
+                                        val message = Message(null, username, uri.toString())
+                                        databaseReference.push().setValue(message)
+
+                                    }
+                                }.addOnProgressListener {
+                                    downloadProgress.progress = with(it) { (100 * bytesTransferred / totalByteCount).toInt() }
+                                }
                     }
                 }
         }
+    }
+
+    private fun deletePhoto() {
+        listAdapter.onDeleteClick = { photoUrl, key ->
+            val photoRef = firebaseStorage.getReferenceFromUrl(photoUrl)
+            photoRef.delete().addOnSuccessListener {
+                databaseReference.child(key).removeValue()
+                Toast.makeText(this, "File deleted", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun messageTextWatcher() {
+        messageEditText.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(charSequence: CharSequence, i: Int, i1: Int, i2: Int) {}
+
+            override fun onTextChanged(charSequence: CharSequence, i: Int, i1: Int, i2: Int) {
+                sendButton.isEnabled = charSequence.toString().trim { it <= ' ' }.isNotEmpty()
+            }
+
+            override fun afterTextChanged(editable: Editable) {}
+        })
+        messageEditText.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(DEFAULT_MSG_LENGTH_LIMIT))
     }
 
     override fun onResume() {
