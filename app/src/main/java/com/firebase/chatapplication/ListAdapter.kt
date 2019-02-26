@@ -13,7 +13,7 @@ import kotlinx.android.synthetic.main.item_message.view.*
 class ListAdapter : RecyclerView.Adapter<ListAdapter.DataViewHolder>() {
 
     private val data = ArrayList<Message>()
-    var onDeleteClick: ((String) -> Unit)? = null
+    var onDeleteClick: ((String, String) -> Unit)? = null
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ListAdapter.DataViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -48,11 +48,11 @@ class ListAdapter : RecyclerView.Adapter<ListAdapter.DataViewHolder>() {
 
         init {
             photo.setOnCreateContextMenuListener { contextMenu, _, _ ->
-                contextMenu.setHeaderTitle("SelectAction")
+                contextMenu.setHeaderTitle("Select Action:")
                 val delete = contextMenu.add(Menu.NONE, 1, 1, "Delete")
 
                 delete.setOnMenuItemClickListener {
-                    onDeleteClick?.invoke(data[adapterPosition].photoUrl!!)
+                    onDeleteClick?.invoke(data[adapterPosition].photoUrl!!, data[adapterPosition].key!!)
                     true
                 }
             }

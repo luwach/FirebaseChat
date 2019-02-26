@@ -32,7 +32,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var firebaseAuth: FirebaseAuth
     private lateinit var firebaseStorage: FirebaseStorage
     private lateinit var storageReference: StorageReference
-    private var childEventListener: ChildEventListener? = null
+    private var valueEventListener: ValueEventListener? = null
     private var authStateListener: FirebaseAuth.AuthStateListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,9 +62,12 @@ class MainActivity : AppCompatActivity() {
         })
         messageEditText.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(DEFAULT_MSG_LENGTH_LIMIT))
 
-        listAdapter.onDeleteClick = { photoUrl ->
+        listAdapter.onDeleteClick = { photoUrl, key ->
             val photoRef = firebaseStorage.getReferenceFromUrl(photoUrl)
-            photoRef.delete().addOnSuccessListener { Toast.makeText(this, "File deleted", Toast.LENGTH_SHORT).show() }
+            photoRef.delete().addOnSuccessListener {
+                databaseReference.child(key).removeValue()
+                Toast.makeText(this, "File deleted", Toast.LENGTH_SHORT).show()
+            }
         }
 
         authStateListener = FirebaseAuth.AuthStateListener {
@@ -137,23 +140,27 @@ class MainActivity : AppCompatActivity() {
     private fun onSignedInInitialize(name: String?) {
         username = name.toString()
 
-        childEventListener = object : ChildEventListener {
-            override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
-                val message = dataSnapshot.getValue<Message>(Message::class.java)
-                message?.let { listAdapter.swapData(it) }
+        valueEventListener = object : ValueEventListener {
+            override fun onDataChange(dataSnapshot: DataSnapshot) {
 
+                listAdapter.clearData()
+
+                dataSnapshot.children.forEach(
+                        fun(dataSnapshot: DataSnapshot) {
+                            val message = dataSnapshot.getValue<Message>(Message::class.java)
+                            message?.let {
+                                it.key = dataSnapshot.key
+                                listAdapter.swapData(message)
+                            }
+                        })
+
+                listAdapter.notifyDataSetChanged()
                 progressBar.visibility = ProgressBar.INVISIBLE
             }
 
-            override fun onChildChanged(dataSnapshot: DataSnapshot, s: String?) {}
-
-            override fun onChildRemoved(dataSnapshot: DataSnapshot) {}
-
-            override fun onChildMoved(dataSnapshot: DataSnapshot, s: String?) {}
-
             override fun onCancelled(databaseError: DatabaseError) {}
         }
-        databaseReference.addChildEventListener(childEventListener!!)
+        databaseReference.addValueEventListener(valueEventListener!!)
     }
 
     private fun onSignedOutCleanUp() {
@@ -163,7 +170,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun detachDatabaseReadListener() {
         listAdapter.clearData()
-        childEventListener?.let {
+        valueEventListener?.let {
             databaseReference.removeEventListener(it)
         }
     }
@@ -182,7 +189,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun onClickSendButton(view: View) {
-        val message = Message(messageEditText.text.toString(), username, null)
+        val message = Message(messageEditText.text.toString(), username)
         databaseReference.push().setValue(message)
 
         messageEditText.setText("")
