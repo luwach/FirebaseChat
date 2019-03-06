@@ -7,6 +7,7 @@ import android.support.v7.app.AppCompatActivity
 import android.text.Editable
 import android.text.InputFilter
 import android.text.TextWatcher
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -14,11 +15,14 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import com.firebase.chatapplication.Constants.ANONYMOUS
 import com.firebase.chatapplication.Constants.DEFAULT_MSG_LENGTH_LIMIT
+import com.firebase.chatapplication.Constants.MSG_LENGTH_KEY
 import com.firebase.chatapplication.Constants.RC_PHOTO_PICKER
 import com.firebase.chatapplication.Constants.RC_SIGN_IN
 import com.firebase.ui.auth.AuthUI
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
+import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import kotlinx.android.synthetic.main.activity_main.*
@@ -33,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var firebaseAuth: FirebaseAuth
     private lateinit var firebaseStorage: FirebaseStorage
     private lateinit var storageReference: StorageReference
+    private lateinit var remoteConfig: FirebaseRemoteConfig
     private var valueEventListener: ValueEventListener? = null
     private var authStateListener: FirebaseAuth.AuthStateListener? = null
 
@@ -45,6 +50,7 @@ class MainActivity : AppCompatActivity() {
         firebaseDatabase = FirebaseDatabase.getInstance()
         firebaseAuth = FirebaseAuth.getInstance()
         firebaseStorage = FirebaseStorage.getInstance()
+        remoteConfig = FirebaseRemoteConfig.getInstance()
 
         databaseReference = firebaseDatabase.reference.child("messages")
         storageReference = firebaseStorage.reference.child("chat_photos")
@@ -79,6 +85,39 @@ class MainActivity : AppCompatActivity() {
                 else -> onSignedInInitialize(user.displayName)
             }
         }
+
+        val configSettings = FirebaseRemoteConfigSettings.Builder()
+                .setDeveloperModeEnabled(BuildConfig.DEBUG)
+                .build()
+
+        val defaultConfigMap = hashMapOf<String, Any>(MSG_LENGTH_KEY to DEFAULT_MSG_LENGTH_LIMIT)
+
+        remoteConfig.apply {
+            setConfigSettings(configSettings)
+            setDefaults(defaultConfigMap)
+        }
+
+        fetchConfig()
+    }
+
+    private fun fetchConfig() {
+        var cacheExpiration = 3600L
+        if (remoteConfig.info.configSettings.isDeveloperModeEnabled) {
+            cacheExpiration = 0
+        }
+        remoteConfig.fetch(cacheExpiration)
+                .addOnSuccessListener {
+                    remoteConfig.activateFetched()
+                    applyRetrievedLengthLimit()
+                }.addOnFailureListener {
+                    Log.w("MAIN_ACTIVITY", "Error fetching config", it)
+                    applyRetrievedLengthLimit()
+                }
+    }
+
+    private fun applyRetrievedLengthLimit() {
+        val messageLength = remoteConfig.getLong(MSG_LENGTH_KEY)
+        messageEditText.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(messageLength.toInt()))
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -136,7 +175,6 @@ class MainActivity : AppCompatActivity() {
 
             override fun afterTextChanged(editable: Editable) {}
         })
-        messageEditText.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(DEFAULT_MSG_LENGTH_LIMIT))
     }
 
     override fun onResume() {
@@ -167,7 +205,8 @@ class MainActivity : AppCompatActivity() {
                                 it.key = dataSnapshot.key
                                 listAdapter.swapData(message)
                             }
-                        })
+                        }
+                )
 
                 listAdapter.notifyDataSetChanged()
                 progressBar.visibility = ProgressBar.INVISIBLE
