@@ -1,86 +1,114 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:paddingStart="@dimen/activity_horizontal_margin"
-    android:paddingEnd="@dimen/activity_horizontal_margin"
-    android:paddingBottom="@dimen/activity_horizontal_margin"
+    android:orientation="vertical"
     tools:context="com.firebase.chatapplication.MainActivity">
 
-    <ProgressBar
-        android:id="@+id/downloadProgress"
-        style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/mainView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_height="match_parent"
+        android:paddingStart="@dimen/activity_horizontal_margin"
+        android:paddingEnd="@dimen/activity_horizontal_margin"
+        android:paddingBottom="@dimen/activity_horizontal_margin">
 
-    <ProgressBar
-        android:id="@+id/progressBar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        <ProgressBar
+            android:id="@+id/downloadProgress"
+            style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/messageRecyclerView"
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/messageRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="8dp"
+            android:stackFromBottom="true"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            app:layout_constraintBottom_toTopOf="@+id/messageEditText"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/downloadProgress"
+            app:stackFromEnd="true"
+            tools:listitem="@layout/item_message" />
+
+        <ImageButton
+            android:id="@+id/photoPickerButton"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@android:drawable/ic_menu_gallery"
+            android:onClick="onClickUploadImage"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <ImageButton
+            android:id="@+id/cameraPickerButton"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@android:drawable/ic_menu_camera"
+            android:onClick="onClickUploadCamera"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/photoPickerButton" />
+
+        <EditText
+            android:id="@+id/messageEditText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/sendButton"
+            app:layout_constraintStart_toEndOf="@+id/cameraPickerButton" />
+
+        <Button
+            android:id="@+id/sendButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:onClick="onClickSendButton"
+            android:text="@string/send_button_label"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/cameraView"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        android:stackFromBottom="true"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        app:layout_constraintBottom_toTopOf="@+id/messageEditText"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/downloadProgress"
-        app:stackFromEnd="true"
-        tools:listitem="@layout/item_message" />
+        android:layout_height="match_parent">
 
-    <ImageButton
-        android:id="@+id/photoPickerButton"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:background="@android:drawable/ic_menu_gallery"
-        android:onClick="onClickUploadImage"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        <TextureView
+            android:id="@+id/view_finder"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-    <ImageButton
-        android:id="@+id/cameraPickerButton"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:background="@android:drawable/ic_menu_camera"
-        android:onClick="onClickUploadCamera"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/photoPickerButton" />
-
-    <EditText
-        android:id="@+id/messageEditText"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/sendButton"
-        app:layout_constraintStart_toEndOf="@+id/cameraPickerButton" />
-
-    <Button
-        android:id="@+id/sendButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:enabled="false"
-        android:onClick="onClickSendButton"
-        android:text="@string/send_button_label"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <ImageView
-        android:id="@+id/iv"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <ImageButton
+            android:id="@+id/capture_button"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_margin="24dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:srcCompat="@android:drawable/ic_menu_camera" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>
