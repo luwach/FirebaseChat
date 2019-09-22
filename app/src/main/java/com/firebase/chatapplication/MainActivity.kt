@@ -111,7 +111,7 @@ class MainActivity : AppCompatActivity() {
         firebaseAuth = FirebaseAuth.getInstance()
         firebaseStorage = FirebaseStorage.getInstance()
         remoteConfigManager =
-            RemoteConfigManager(PreferenceManager.getDefaultSharedPreferences(this))
+            RemoteConfigManager(PreferenceManager.getDefaultSharedPreferences(applicationContext))
 
         databaseReference = firebaseDatabase.reference.child("messages")
         storageReference = firebaseStorage.reference.child("chat_photos")

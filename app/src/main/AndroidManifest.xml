@@ -30,6 +30,15 @@
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
 
+        <service
+            android:name=".services.FirebaseCloudMessaging"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+
     </application>
 
 </manifest>
