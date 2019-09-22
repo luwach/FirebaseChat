@@ -1,4 +1,4 @@
-package com.firebase.chatapplication.camera
+package com.firebase.chatapplication.managers
 
 import android.content.Intent
 import android.net.Uri

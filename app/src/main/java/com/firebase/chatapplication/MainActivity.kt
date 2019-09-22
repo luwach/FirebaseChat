@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
+import android.preference.PreferenceManager
 import android.text.Editable
 import android.text.InputFilter
 import android.text.TextWatcher
@@ -22,20 +23,18 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.firebase.chatapplication.Constants.ANONYMOUS
-import com.firebase.chatapplication.Constants.DEFAULT_MSG_LENGTH_LIMIT
-import com.firebase.chatapplication.Constants.MSG_LENGTH_KEY
 import com.firebase.chatapplication.Constants.RC_PHOTO_CAMERA
 import com.firebase.chatapplication.Constants.RC_PHOTO_PICKER
 import com.firebase.chatapplication.Constants.RC_SIGN_IN
 import com.firebase.chatapplication.Constants.REQUEST_CODE_PERMISSIONS
 import com.firebase.chatapplication.Constants.REQUIRED_PERMISSIONS
-import com.firebase.chatapplication.camera.CameraXManager
-import com.firebase.chatapplication.camera.IntentCameraManager
+import com.firebase.chatapplication.managers.CameraXManager
+import com.firebase.chatapplication.managers.IntentCameraManager
+import com.firebase.chatapplication.managers.RemoteConfigManager
+import com.firebase.chatapplication.view.ForceUpdateDialogFragment
 import com.firebase.ui.auth.AuthUI
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
-import com.google.firebase.remoteconfig.FirebaseRemoteConfig
-import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import com.google.firebase.storage.UploadTask
@@ -57,7 +56,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var firebaseAuth: FirebaseAuth
     private lateinit var firebaseStorage: FirebaseStorage
     private lateinit var storageReference: StorageReference
-    private lateinit var remoteConfig: FirebaseRemoteConfig
+    private lateinit var remoteConfigManager: RemoteConfigManager
     private var valueEventListener: ValueEventListener? = null
     private var authStateListener: FirebaseAuth.AuthStateListener? = null
 
@@ -70,27 +69,25 @@ class MainActivity : AppCompatActivity() {
 
         username = ANONYMOUS
 
-        firebaseDatabase = FirebaseDatabase.getInstance()
-        firebaseAuth = FirebaseAuth.getInstance()
-        firebaseStorage = FirebaseStorage.getInstance()
-        remoteConfig = FirebaseRemoteConfig.getInstance()
+        firebaseInit()
+        initView()
+        initCameraX()
+    }
 
-        databaseReference = firebaseDatabase.reference.child("messages")
-        storageReference = firebaseStorage.reference.child("chat_photos")
-
-        listAdapter = ListAdapter()
-        messageRecyclerView.adapter = listAdapter
-
+    private fun initCameraX() {
         viewFinder = findViewById(R.id.view_finder)
         cameraXManager = CameraXManager(viewFinder)
-
         cameraPickerButton.setOnLongClickListener {
             if (allPermissionsGranted()) {
                 cameraView.visibility = View.VISIBLE
                 mainView.visibility = View.GONE
                 viewFinder.post { cameraXManager.startCamera(this) }
             } else {
-                ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+                ActivityCompat.requestPermissions(
+                    this,
+                    REQUIRED_PERMISSIONS,
+                    REQUEST_CODE_PERMISSIONS
+                )
             }
             true
         }
@@ -107,9 +104,17 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
 
-        messageTextWatcher()
-        deletePhoto()
+    private fun firebaseInit() {
+        firebaseDatabase = FirebaseDatabase.getInstance()
+        firebaseAuth = FirebaseAuth.getInstance()
+        firebaseStorage = FirebaseStorage.getInstance()
+        remoteConfigManager =
+            RemoteConfigManager(PreferenceManager.getDefaultSharedPreferences(this))
+
+        databaseReference = firebaseDatabase.reference.child("messages")
+        storageReference = firebaseStorage.reference.child("chat_photos")
 
         authStateListener = FirebaseAuth.AuthStateListener {
             val user = it.currentUser
@@ -138,38 +143,24 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        val configSettings = FirebaseRemoteConfigSettings.Builder()
-            .setDeveloperModeEnabled(BuildConfig.DEBUG)
-            .build()
-
-        val defaultConfigMap = hashMapOf<String, Any>(MSG_LENGTH_KEY to DEFAULT_MSG_LENGTH_LIMIT)
-
-        remoteConfig.apply {
-            setConfigSettings(configSettings)
-            setDefaults(defaultConfigMap)
-        }
-
-        fetchConfig()
-    }
-
-    private fun fetchConfig() {
-        var cacheExpiration = 3600L
-        if (remoteConfig.info.configSettings.isDeveloperModeEnabled) {
-            cacheExpiration = 0
-        }
-        remoteConfig.fetch(cacheExpiration)
-            .addOnSuccessListener {
-                remoteConfig.activateFetched()
-                applyRetrievedLengthLimit()
-            }.addOnFailureListener {
-                Log.w("MAIN_ACTIVITY", "Error fetching config", it)
-                applyRetrievedLengthLimit()
+        remoteConfigManager.fetchAndActivate {
+            if (it) {
+                Log.d("###", "isForceUpdate = ${remoteConfigManager.isUpdateRequired()}")
+                if (remoteConfigManager.isUpdateRequired())
+                    ForceUpdateDialogFragment().show(
+                        supportFragmentManager,
+                        "ForceUpdateDialogFragment"
+                    )
+            } else {
+                Toast.makeText(this, "Remote config fetch failed!", Toast.LENGTH_SHORT).show()
             }
+            applyRetrievedLengthLimit(remoteConfigManager.getMsgLength())
+        }
     }
 
-    private fun applyRetrievedLengthLimit() {
-        val messageLength = remoteConfig.getLong(MSG_LENGTH_KEY)
-        messageEditText.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(messageLength.toInt()))
+    private fun applyRetrievedLengthLimit(messageLength: Long) {
+        messageEditText.filters =
+            arrayOf<InputFilter>(InputFilter.LengthFilter(messageLength.toInt()))
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -214,17 +205,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun deletePhoto() {
-        listAdapter.onDeleteClick = { photoUrl, key ->
-            val photoRef = firebaseStorage.getReferenceFromUrl(photoUrl)
-            photoRef.delete().addOnSuccessListener {
-                databaseReference.child(key).removeValue()
-                Toast.makeText(this, "File deleted", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun messageTextWatcher() {
+    private fun initView() {
+        listAdapter = ListAdapter()
+        messageRecyclerView.adapter = listAdapter
         messageEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(charSequence: CharSequence, i: Int, i1: Int, i2: Int) {}
 
@@ -234,6 +217,13 @@ class MainActivity : AppCompatActivity() {
 
             override fun afterTextChanged(editable: Editable) {}
         })
+        listAdapter.onDeleteClick = { photoUrl, key ->
+            val photoRef = firebaseStorage.getReferenceFromUrl(photoUrl)
+            photoRef.delete().addOnSuccessListener {
+                databaseReference.child(key).removeValue()
+                Toast.makeText(this, "File deleted", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     override fun onResume() {
@@ -328,7 +318,7 @@ class MainActivity : AppCompatActivity() {
     fun createImageFile(): File {
         // Create an image file name
         val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
-        val storageDir: File = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        val storageDir: File = getExternalFilesDir(Environment.DIRECTORY_PICTURES)!!
         return File.createTempFile(
             "JPEG_${timeStamp}_", /* prefix */
             ".jpg", /* suffix */

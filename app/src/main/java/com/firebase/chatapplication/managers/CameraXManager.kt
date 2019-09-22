@@ -1,4 +1,4 @@
-package com.firebase.chatapplication.camera
+package com.firebase.chatapplication.managers
 
 import android.graphics.Matrix
 import android.util.Log
