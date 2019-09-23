@@ -1,5 +1,9 @@
 <resources>
+    <string name="topic_push_remote_config" translatable="false">PUSH_RC</string>
+
     <string name="app_name">Chat Application</string>
     <string name="sign_out">Sign Out</string>
     <string name="send_button_label">Send</string>
+    <string name="force_update_text">Force update is required</string>
+    <string name="update_now_text">Update now</string>
 </resources>
