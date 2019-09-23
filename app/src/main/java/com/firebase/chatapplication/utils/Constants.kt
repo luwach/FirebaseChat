@@ -1,4 +1,4 @@
-package com.firebase.chatapplication
+package com.firebase.chatapplication.utils
 
 import android.Manifest
 

@@ -8,29 +8,26 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.preference.PreferenceManager
-import android.text.Editable
 import android.text.InputFilter
-import android.text.TextWatcher
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
-import android.view.TextureView
 import android.view.View
-import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.firebase.chatapplication.Constants.ANONYMOUS
-import com.firebase.chatapplication.Constants.RC_PHOTO_CAMERA
-import com.firebase.chatapplication.Constants.RC_PHOTO_PICKER
-import com.firebase.chatapplication.Constants.RC_SIGN_IN
-import com.firebase.chatapplication.Constants.REQUEST_CODE_PERMISSIONS
-import com.firebase.chatapplication.Constants.REQUIRED_PERMISSIONS
 import com.firebase.chatapplication.managers.CameraXManager
 import com.firebase.chatapplication.managers.IntentCameraManager
 import com.firebase.chatapplication.managers.RemoteConfigManager
+import com.firebase.chatapplication.utils.Constants.ANONYMOUS
+import com.firebase.chatapplication.utils.Constants.RC_PHOTO_CAMERA
+import com.firebase.chatapplication.utils.Constants.RC_PHOTO_PICKER
+import com.firebase.chatapplication.utils.Constants.RC_SIGN_IN
+import com.firebase.chatapplication.utils.Constants.REQUEST_CODE_PERMISSIONS
+import com.firebase.chatapplication.utils.Constants.REQUIRED_PERMISSIONS
+import com.firebase.chatapplication.utils.SimpleTextWatcher
 import com.firebase.chatapplication.view.ForceUpdateDialogFragment
 import com.firebase.ui.auth.AuthUI
 import com.google.firebase.auth.FirebaseAuth
@@ -44,13 +41,11 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
 
-class MainActivity : AppCompatActivity() {
+class MainActivity: AppCompatActivity() {
 
     private var currentPhotoPath: String? = null
     private var username = ""
-    private lateinit var listAdapter: ListAdapter
-    private lateinit var viewFinder: TextureView
-
+    private val listAdapter = ListAdapter()
     private lateinit var firebaseDatabase: FirebaseDatabase
     private lateinit var databaseReference: DatabaseReference
     private lateinit var firebaseAuth: FirebaseAuth
@@ -75,13 +70,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initCameraX() {
-        viewFinder = findViewById(R.id.view_finder)
-        cameraXManager = CameraXManager(viewFinder)
+        cameraXManager = CameraXManager(finderView)
+
         cameraPickerButton.setOnLongClickListener {
             if (allPermissionsGranted()) {
                 cameraView.visibility = View.VISIBLE
                 mainView.visibility = View.GONE
-                viewFinder.post { cameraXManager.startCamera(this) }
+                finderView.post { cameraXManager.startCamera(this) }
             } else {
                 ActivityCompat.requestPermissions(
                     this,
@@ -91,16 +86,18 @@ class MainActivity : AppCompatActivity() {
             }
             true
         }
-        viewFinder.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+
+        finderView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             cameraXManager.updateTransform()
         }
-        findViewById<ImageButton>(R.id.capture_button).setOnClickListener {
+
+        captureButton.setOnClickListener {
             cameraView.visibility = View.GONE
             mainView.visibility = View.VISIBLE
-            cameraXManager.takePicture(createImageFile()) { file ->
-                file.path?.split("/")?.last()?.run {
+            cameraXManager.takePicture(createImageFile()) {
+                it.path.split("/").last().run {
                     val photoRef = storageReference.child(this)
-                    handleResponse(photoRef.putFile(Uri.fromFile(file)))
+                    handleResponse(photoRef.putFile(Uri.fromFile(it)))
                 }
             }
         }
@@ -110,8 +107,7 @@ class MainActivity : AppCompatActivity() {
         firebaseDatabase = FirebaseDatabase.getInstance()
         firebaseAuth = FirebaseAuth.getInstance()
         firebaseStorage = FirebaseStorage.getInstance()
-        remoteConfigManager =
-            RemoteConfigManager(PreferenceManager.getDefaultSharedPreferences(applicationContext))
+        remoteConfigManager = RemoteConfigManager(PreferenceManager.getDefaultSharedPreferences(applicationContext))
 
         databaseReference = firebaseDatabase.reference.child("messages")
         storageReference = firebaseStorage.reference.child("chat_photos")
@@ -119,7 +115,7 @@ class MainActivity : AppCompatActivity() {
         authStateListener = FirebaseAuth.AuthStateListener {
             val user = it.currentUser
 
-            when (user) {
+            when (it.currentUser) {
                 null -> {
                     onSignedOutCleanUp()
 
@@ -139,7 +135,7 @@ class MainActivity : AppCompatActivity() {
                             .build(), RC_SIGN_IN
                     )
                 }
-                else -> onSignedInInitialize(user.displayName)
+                else -> onSignedInInitialize(user?.displayName)
             }
         }
 
@@ -158,10 +154,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun applyRetrievedLengthLimit(messageLength: Long) {
-        messageEditText.filters =
-            arrayOf<InputFilter>(InputFilter.LengthFilter(messageLength.toInt()))
-    }
+    private fun applyRetrievedLengthLimit(messageLength: Long) =
+        messageEditText.also { it.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(messageLength.toInt())) }
+
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -183,40 +178,35 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             RC_PHOTO_CAMERA ->
-                if (resultCode == Activity.RESULT_OK) {
-                    currentPhotoPath?.split("/")?.last()?.run {
-                        val photoRef = storageReference.child(this)
-                        handleResponse(photoRef.putFile(Uri.fromFile(File(currentPhotoPath))))
+                when (resultCode) {
+                    Activity.RESULT_OK -> {
+                        currentPhotoPath?.split("/")?.last()?.run {
+                            val photoRef = storageReference.child(this)
+                            handleResponse(photoRef.putFile(Uri.fromFile(File(currentPhotoPath))))
+                        }
                     }
                 }
         }
     }
 
-    private fun handleResponse(uploadTask: UploadTask) {
+    private fun handleResponse(uploadTask: UploadTask) =
         uploadTask.addOnSuccessListener { taskSnapshot ->
             Handler().postDelayed({ downloadProgress.progress = 0 }, 5000)
-            taskSnapshot.metadata?.reference?.downloadUrl?.addOnSuccessListener { uri ->
-                val message = Message(null, username, uri.toString())
-                databaseReference.push().setValue(message)
+            taskSnapshot.metadata?.reference?.downloadUrl?.addOnSuccessListener {
+                databaseReference.push().setValue(Message(null, username, it.toString()))
             }
         }.addOnProgressListener {
-            downloadProgress.progress =
-                with(it) { (100 * bytesTransferred / totalByteCount).toInt() }
+            downloadProgress.progress = with(it) { (100 * bytesTransferred / totalByteCount).toInt() }
         }
-    }
 
     private fun initView() {
-        listAdapter = ListAdapter()
         messageRecyclerView.adapter = listAdapter
-        messageEditText.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(charSequence: CharSequence, i: Int, i1: Int, i2: Int) {}
-
-            override fun onTextChanged(charSequence: CharSequence, i: Int, i1: Int, i2: Int) {
-                sendButton.isEnabled = charSequence.toString().trim { it <= ' ' }.isNotEmpty()
+        messageEditText.addTextChangedListener(object: SimpleTextWatcher() {
+            override fun onTextChanged(charSequence: CharSequence, start: Int, before: Int, count: Int) {
+                sendButton.isEnabled = charSequence.trim { it <= ' ' }.isNotEmpty()
             }
-
-            override fun afterTextChanged(editable: Editable) {}
         })
+
         listAdapter.onDeleteClick = { photoUrl, key ->
             val photoRef = firebaseStorage.getReferenceFromUrl(photoUrl)
             photoRef.delete().addOnSuccessListener {
@@ -242,7 +232,7 @@ class MainActivity : AppCompatActivity() {
     private fun onSignedInInitialize(name: String?) {
         username = name.toString()
 
-        valueEventListener = object : ValueEventListener {
+        valueEventListener = object: ValueEventListener {
             override fun onDataChange(dataSnapshot: DataSnapshot) {
 
                 listAdapter.clearData()
@@ -252,7 +242,7 @@ class MainActivity : AppCompatActivity() {
                         val message = dataSnapshot.getValue<Message>(Message::class.java)
                         message?.let {
                             it.key = dataSnapshot.key
-                            listAdapter.swapData(message)
+                            listAdapter.setMessages(message)
                         }
                     }
                 )
@@ -283,7 +273,7 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
-    override fun onOptionsItemSelected(item: MenuItem?): Boolean = when (item?.itemId) {
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         R.id.sign_out_menu -> {
             AuthUI.getInstance().signOut(this)
             true
@@ -298,12 +288,10 @@ class MainActivity : AppCompatActivity() {
         messageEditText.setText("")
     }
 
-    fun onClickUploadImage(view: View) {
-        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            type = "image/jpeg"
-            putExtra(Intent.EXTRA_LOCAL_ONLY, true)
-        }
-        startActivityForResult(Intent.createChooser(intent, "Complete action"), RC_PHOTO_PICKER)
+    fun onClickUploadImage(view: View) = Intent(Intent.ACTION_GET_CONTENT).apply {
+        type = "image/jpeg"
+        putExtra(Intent.EXTRA_LOCAL_ONLY, true)
+        startActivityForResult(Intent.createChooser(this, "Complete action"), RC_PHOTO_PICKER)
     }
 
     fun onClickUploadCamera(view: View) {
@@ -338,7 +326,7 @@ class MainActivity : AppCompatActivity() {
     ) {
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
-                viewFinder.post { cameraXManager.startCamera(this) }
+                finderView.post { cameraXManager.startCamera(this) }
             } else {
                 Toast.makeText(
                     this,

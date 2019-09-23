@@ -11,18 +11,19 @@ import androidx.camera.core.*
 import androidx.lifecycle.LifecycleOwner
 import java.io.File
 
-class CameraXManager(private val viewFinder: TextureView) {
+class CameraXManager(
+    private val viewFinder: TextureView
+) {
 
     private lateinit var imageCapture: ImageCapture
 
     fun startCamera(lifecycleOwner: LifecycleOwner) {
         // Create configuration object for the viewfinder use case
-        val previewConfig =
-            PreviewConfig.Builder().apply {
-                setLensFacing(CameraX.LensFacing.BACK)
-                setTargetAspectRatio(Rational(1, 1))
-                setTargetResolution(Size(640, 640))
-            }.build()
+        val previewConfig = PreviewConfig.Builder().apply {
+            setLensFacing(CameraX.LensFacing.BACK)
+            setTargetAspectRatio(Rational(1, 1))
+            setTargetResolution(Size(640, 640))
+        }.build()
 
         // Build the viewfinder use case
         val preview = Preview(previewConfig)
@@ -39,14 +40,13 @@ class CameraXManager(private val viewFinder: TextureView) {
         }
 
         // Create configuration object for the image capture use case
-        val imageCaptureConfig = ImageCaptureConfig.Builder()
-            .apply {
-                setTargetAspectRatio(Rational(1, 1))
-                // We don't set a resolution for image capture; instead, we
-                // select a capture mode which will infer the appropriate
-                // resolution based on aspect ration and requested mode
-                setCaptureMode(ImageCapture.CaptureMode.MIN_LATENCY)
-            }.build()
+        val imageCaptureConfig = ImageCaptureConfig.Builder().apply {
+            setTargetAspectRatio(Rational(1, 1))
+            // We don't set a resolution for image capture; instead, we
+            // select a capture mode which will infer the appropriate
+            // resolution based on aspect ration and requested mode
+            setCaptureMode(ImageCapture.CaptureMode.MIN_LATENCY)
+        }.build()
 
         // Build the image capture use case and attach button click listener
         imageCapture = ImageCapture(imageCaptureConfig)
@@ -76,25 +76,23 @@ class CameraXManager(private val viewFinder: TextureView) {
         viewFinder.setTransform(matrix)
     }
 
-    fun takePicture(file: File, onSuccess: (File) -> Unit) {
-        imageCapture.takePicture(file,
-            object : ImageCapture.OnImageSavedListener {
-                override fun onError(
-                    error: ImageCapture.UseCaseError,
-                    message: String, exc: Throwable?
-                ) {
-                    val msg = "Photo capture failed: $message"
-                    Log.e("CameraXApp", msg)
-                    exc?.printStackTrace()
-                }
+    fun takePicture(file: File, onSuccess: (File) -> Unit) =
+        imageCapture.takePicture(file, object: ImageCapture.OnImageSavedListener {
+            override fun onError(
+                error: ImageCapture.UseCaseError,
+                message: String, exc: Throwable?
+            ) {
+                val msg = "Photo capture failed: $message"
+                Log.e("CameraXApp", msg)
+                exc?.printStackTrace()
+            }
 
-                override fun onImageSaved(file: File) {
-                    val msg = "Photo capture succeeded: ${file.absolutePath}"
-                    Log.d("CameraXApp", msg)
-                    onSuccess(file)
-                    // Clear CameraX
-                    CameraX.unbindAll()
-                }
-            })
-    }
+            override fun onImageSaved(file: File) {
+                val msg = "Photo capture succeeded: ${file.absolutePath}"
+                Log.d("CameraXApp", msg)
+                onSuccess(file)
+                // Clear CameraX
+                CameraX.unbindAll()
+            }
+        })
 }

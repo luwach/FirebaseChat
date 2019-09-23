@@ -93,7 +93,7 @@
         android:layout_height="match_parent">
 
         <TextureView
-            android:id="@+id/view_finder"
+            android:id="@+id/finderView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -102,7 +102,7 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <ImageButton
-            android:id="@+id/capture_button"
+            android:id="@+id/captureButton"
             android:layout_width="72dp"
             android:layout_height="72dp"
             android:layout_margin="24dp"

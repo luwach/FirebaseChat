@@ -5,7 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.firebase.chatapplication.R
-import com.firebase.chatapplication.openLink
+import com.firebase.chatapplication.utils.openLink
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import kotlinx.android.synthetic.main.dialog_force_update.view.*
 

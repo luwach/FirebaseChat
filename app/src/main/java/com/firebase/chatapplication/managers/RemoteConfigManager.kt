@@ -1,14 +1,13 @@
 package com.firebase.chatapplication.managers
 
 import android.content.SharedPreferences
-import android.util.Log
 import com.firebase.chatapplication.BuildConfig
-import com.firebase.chatapplication.Constants.CACHE_EXPIRATION_TIME
-import com.firebase.chatapplication.Constants.CONFIG_STALE_KEY
-import com.firebase.chatapplication.Constants.DEFAULT_MIN_REQ_VERSION
-import com.firebase.chatapplication.Constants.DEFAULT_MSG_LENGTH_LIMIT
-import com.firebase.chatapplication.Constants.FORCE_UPDATE_KEY
-import com.firebase.chatapplication.Constants.MSG_LENGTH_KEY
+import com.firebase.chatapplication.utils.Constants.CACHE_EXPIRATION_TIME
+import com.firebase.chatapplication.utils.Constants.CONFIG_STALE_KEY
+import com.firebase.chatapplication.utils.Constants.DEFAULT_MIN_REQ_VERSION
+import com.firebase.chatapplication.utils.Constants.DEFAULT_MSG_LENGTH_LIMIT
+import com.firebase.chatapplication.utils.Constants.FORCE_UPDATE_KEY
+import com.firebase.chatapplication.utils.Constants.MSG_LENGTH_KEY
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
 
