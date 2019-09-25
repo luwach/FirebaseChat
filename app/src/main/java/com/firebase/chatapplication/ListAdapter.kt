@@ -4,6 +4,7 @@ import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.firebase.chatapplication.model.Message
 import com.firebase.chatapplication.utils.inflateItem
 import com.squareup.picasso.Picasso
 import kotlinx.android.extensions.LayoutContainer
@@ -43,7 +44,7 @@ class DataViewHolder(
 
     fun bind(message: Message, onDeleteClick: (String, String) -> Unit) = with(message) {
 
-        messageTextView.text = name
+        nameTextView.text = name
 
         if (photoUrl != null) {
             messageTextView.visibility = View.GONE
