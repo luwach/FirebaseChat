@@ -1,17 +1,10 @@
 package com.firebase.chatapplication.utils
 
-import android.Manifest
-
 object Constants {
 
     const val RC_SIGN_IN = 1
     const val RC_PHOTO_PICKER = 2
     const val RC_PHOTO_CAMERA = 3
-    const val ANONYMOUS = "anonymous"
-
-    const val REQUEST_CODE_PERMISSIONS = 10
-    val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
-
 
     // Remote config
     const val CONFIG_STALE_KEY = "config_stale"

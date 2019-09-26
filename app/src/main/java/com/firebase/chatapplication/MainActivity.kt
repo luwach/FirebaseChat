@@ -7,7 +7,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
-import android.preference.PreferenceManager
 import android.text.InputFilter
 import android.util.Log
 import android.view.Menu
@@ -20,21 +19,23 @@ import com.firebase.chatapplication.managers.CameraXManager
 import com.firebase.chatapplication.managers.IntentCameraManager
 import com.firebase.chatapplication.managers.RemoteConfigManager
 import com.firebase.chatapplication.model.Message
-import com.firebase.chatapplication.utils.Constants.ANONYMOUS
+import com.firebase.chatapplication.prefs.UserPreferences
+import com.firebase.chatapplication.providers.SignInProvider
 import com.firebase.chatapplication.utils.Constants.RC_PHOTO_CAMERA
 import com.firebase.chatapplication.utils.Constants.RC_PHOTO_PICKER
 import com.firebase.chatapplication.utils.Constants.RC_SIGN_IN
 import com.firebase.chatapplication.utils.SimpleTextWatcher
 import com.firebase.chatapplication.view.ForceUpdateDialogFragment
 import com.firebase.ui.auth.AuthUI
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.*
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import com.google.firebase.storage.UploadTask
 import kotlinx.android.synthetic.main.activity_main.*
-import org.koin.core.KoinComponent
-import org.koin.core.inject
+import org.koin.core.parameter.parametersOf
+import org.koin.standalone.KoinComponent
+import org.koin.standalone.inject
 import permissions.dispatcher.NeedsPermission
 import permissions.dispatcher.OnPermissionDenied
 import permissions.dispatcher.RuntimePermissions
@@ -46,28 +47,24 @@ import java.util.*
 @RuntimePermissions
 class MainActivity: AppCompatActivity(), KoinComponent {
 
-    private val firebaseAuth: FirebaseAuth by inject()
     private val firebaseDatabase: FirebaseDatabase by inject()
     private val firebaseStorage: FirebaseStorage by inject()
+    private val provider: SignInProvider by inject { parametersOf(this@MainActivity) }
+    private val cameraXManager: CameraXManager by inject { parametersOf(finderView) }
+    private val userPreferences: UserPreferences by inject()
+    private val remoteConfigManager: RemoteConfigManager by inject()
+    private val intentCameraManager: IntentCameraManager by inject()
 
     private var currentPhotoPath: String? = null
-    private var username = ""
     private val listAdapter = ListAdapter()
     private lateinit var databaseReference: DatabaseReference
     private lateinit var storageReference: StorageReference
-    private lateinit var remoteConfigManager: RemoteConfigManager
-    private var valueEventListener: ValueEventListener? = null
-    private var authStateListener: FirebaseAuth.AuthStateListener? = null
-
-    private val intentCameraManager = IntentCameraManager()
-    private lateinit var cameraXManager: CameraXManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        username = ANONYMOUS
-
+        provider.init(this.lifecycle)
         initCameraXWithPermissionCheck()
         firebaseInit()
         initView()
@@ -75,7 +72,6 @@ class MainActivity: AppCompatActivity(), KoinComponent {
 
     @NeedsPermission(Manifest.permission.CAMERA)
     fun initCameraX() {
-        cameraXManager = CameraXManager(finderView)
 
         cameraPickerButton.setOnClickListener {
             startActivityForResult(intentCameraManager.getIntent(this), RC_PHOTO_CAMERA)
@@ -105,36 +101,21 @@ class MainActivity: AppCompatActivity(), KoinComponent {
     }
 
     private fun firebaseInit() {
-        remoteConfigManager = RemoteConfigManager(PreferenceManager.getDefaultSharedPreferences(applicationContext))
 
         databaseReference = firebaseDatabase.reference.child("messages")
         storageReference = firebaseStorage.reference.child("chat_photos")
 
-        authStateListener = FirebaseAuth.AuthStateListener {
-            val user = it.currentUser
+        provider.onClearList = {
+            listAdapter.clearData()
+        }
 
-            when (it.currentUser) {
-                null -> {
-                    onSignedOutCleanUp()
+        provider.onItemUpdate = {
+            listAdapter.setMessages(it)
+        }
 
-                    val providers = mutableListOf(
-                        AuthUI.IdpConfig.EmailBuilder().build(),
-                        AuthUI.IdpConfig.GoogleBuilder().build()
-                    )
-
-                    // Create and launch sign-in intent
-                    startActivityForResult(
-                        AuthUI.getInstance()
-                            .createSignInIntentBuilder()
-                            .setIsSmartLockEnabled(false)
-                            .setAvailableProviders(providers)
-                            .setTheme(R.style.ThemeOverlay_AppCompat_Dark)
-                            .setLogo(R.drawable.ic_android)
-                            .build(), RC_SIGN_IN
-                    )
-                }
-                else -> onSignedInInitialize(user?.displayName)
-            }
+        provider.onNotifyList = {
+            listAdapter.notifyDataSetChanged()
+            progressBar.visibility = ProgressBar.INVISIBLE
         }
 
         remoteConfigManager.fetchAndActivate {
@@ -192,7 +173,8 @@ class MainActivity: AppCompatActivity(), KoinComponent {
         uploadTask.addOnSuccessListener { taskSnapshot ->
             Handler().postDelayed({ downloadProgress.progress = 0 }, 5000)
             taskSnapshot.metadata?.reference?.downloadUrl?.addOnSuccessListener {
-                databaseReference.push().setValue(Message(null, username, it.toString()))
+                databaseReference.push()
+                    .setValue(Message(null, userPreferences.username ?: "Anonymous", it.toString()))
             }
         }.addOnProgressListener {
             downloadProgress.progress =
@@ -216,58 +198,6 @@ class MainActivity: AppCompatActivity(), KoinComponent {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        firebaseAuth.addAuthStateListener(authStateListener!!)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        authStateListener?.let {
-            firebaseAuth.removeAuthStateListener(it)
-        }
-        detachDatabaseReadListener()
-    }
-
-    private fun onSignedInInitialize(name: String?) {
-        username = name.toString()
-
-        valueEventListener = object: ValueEventListener {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-
-                listAdapter.clearData()
-
-                dataSnapshot.children.forEach(
-                    fun(dataSnapshot: DataSnapshot) {
-                        val message = dataSnapshot.getValue<Message>(Message::class.java)
-                        message?.let {
-                            it.key = dataSnapshot.key
-                            listAdapter.setMessages(message)
-                        }
-                    }
-                )
-
-                listAdapter.notifyDataSetChanged()
-                progressBar.visibility = ProgressBar.INVISIBLE
-            }
-
-            override fun onCancelled(databaseError: DatabaseError) {}
-        }
-        databaseReference.addValueEventListener(valueEventListener!!)
-    }
-
-    private fun onSignedOutCleanUp() {
-        username = ANONYMOUS
-        detachDatabaseReadListener()
-    }
-
-    private fun detachDatabaseReadListener() {
-        listAdapter.clearData()
-        valueEventListener?.let {
-            databaseReference.removeEventListener(it)
-        }
-    }
-
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
         return true
@@ -282,7 +212,7 @@ class MainActivity: AppCompatActivity(), KoinComponent {
     }
 
     fun onClickSendButton(view: View) {
-        databaseReference.push().setValue(Message(messageEditText.text.toString(), username))
+        databaseReference.push().setValue(Message(messageEditText.text.toString(), userPreferences.username ?: "Anonymous"))
         messageEditText.setText("")
     }
 

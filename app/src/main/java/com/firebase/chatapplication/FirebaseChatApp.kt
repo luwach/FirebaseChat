@@ -2,7 +2,9 @@ package com.firebase.chatapplication
 
 import android.app.Application
 import com.firebase.chatapplication.di.firebaseModule
-import org.koin.core.context.startKoin
+import com.firebase.chatapplication.di.providersModule
+import com.firebase.chatapplication.di.repositoriesModule
+import org.koin.android.ext.android.startKoin
 
 class FirebaseChatApp: Application() {
 
@@ -15,7 +17,7 @@ class FirebaseChatApp: Application() {
     }
 
     private fun initKoin() {
-        startKoin { modules(firebaseModule) }
+        startKoin(this, listOf(firebaseModule, providersModule, repositoriesModule))
     }
 
     companion object {
