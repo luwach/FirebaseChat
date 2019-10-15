@@ -1,146 +1,121 @@
 package com.firebase.chatapplication
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
-import android.preference.PreferenceManager
-import android.text.Editable
 import android.text.InputFilter
-import android.text.TextWatcher
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
-import android.view.TextureView
 import android.view.View
-import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import com.firebase.chatapplication.Constants.ANONYMOUS
-import com.firebase.chatapplication.Constants.RC_PHOTO_CAMERA
-import com.firebase.chatapplication.Constants.RC_PHOTO_PICKER
-import com.firebase.chatapplication.Constants.RC_SIGN_IN
-import com.firebase.chatapplication.Constants.REQUEST_CODE_PERMISSIONS
-import com.firebase.chatapplication.Constants.REQUIRED_PERMISSIONS
 import com.firebase.chatapplication.managers.CameraXManager
 import com.firebase.chatapplication.managers.IntentCameraManager
 import com.firebase.chatapplication.managers.RemoteConfigManager
+import com.firebase.chatapplication.model.Message
+import com.firebase.chatapplication.prefs.UserPreferences
+import com.firebase.chatapplication.providers.SignInProvider
+import com.firebase.chatapplication.utils.Constants.RC_PHOTO_CAMERA
+import com.firebase.chatapplication.utils.Constants.RC_PHOTO_PICKER
+import com.firebase.chatapplication.utils.Constants.RC_SIGN_IN
+import com.firebase.chatapplication.utils.SimpleTextWatcher
 import com.firebase.chatapplication.view.ForceUpdateDialogFragment
 import com.firebase.ui.auth.AuthUI
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.*
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import com.google.firebase.storage.UploadTask
 import kotlinx.android.synthetic.main.activity_main.*
+import org.koin.core.parameter.parametersOf
+import org.koin.standalone.KoinComponent
+import org.koin.standalone.inject
+import permissions.dispatcher.NeedsPermission
+import permissions.dispatcher.OnPermissionDenied
+import permissions.dispatcher.RuntimePermissions
 import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
 
-class MainActivity : AppCompatActivity() {
+@RuntimePermissions
+class MainActivity: AppCompatActivity(), KoinComponent {
+
+    private val firebaseDatabase: FirebaseDatabase by inject()
+    private val firebaseStorage: FirebaseStorage by inject()
+    private val provider: SignInProvider by inject { parametersOf(this@MainActivity) }
+    private val cameraXManager: CameraXManager by inject { parametersOf(finderView) }
+    private val userPreferences: UserPreferences by inject()
+    private val remoteConfigManager: RemoteConfigManager by inject()
+    private val intentCameraManager: IntentCameraManager by inject()
 
     private var currentPhotoPath: String? = null
-    private var username = ""
-    private lateinit var listAdapter: ListAdapter
-    private lateinit var viewFinder: TextureView
-
-    private lateinit var firebaseDatabase: FirebaseDatabase
+    private val listAdapter = ListAdapter()
     private lateinit var databaseReference: DatabaseReference
-    private lateinit var firebaseAuth: FirebaseAuth
-    private lateinit var firebaseStorage: FirebaseStorage
     private lateinit var storageReference: StorageReference
-    private lateinit var remoteConfigManager: RemoteConfigManager
-    private var valueEventListener: ValueEventListener? = null
-    private var authStateListener: FirebaseAuth.AuthStateListener? = null
-
-    private val intentCameraManager = IntentCameraManager()
-    private lateinit var cameraXManager: CameraXManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        username = ANONYMOUS
-
+        provider.init(this.lifecycle)
+        initCameraXWithPermissionCheck()
         firebaseInit()
         initView()
-        initCameraX()
     }
 
-    private fun initCameraX() {
-        viewFinder = findViewById(R.id.view_finder)
-        cameraXManager = CameraXManager(viewFinder)
+    @NeedsPermission(Manifest.permission.CAMERA)
+    fun initCameraX() {
+
+        cameraPickerButton.setOnClickListener {
+            startActivityForResult(intentCameraManager.getIntent(this), RC_PHOTO_CAMERA)
+        }
+
         cameraPickerButton.setOnLongClickListener {
-            if (allPermissionsGranted()) {
-                cameraView.visibility = View.VISIBLE
-                mainView.visibility = View.GONE
-                viewFinder.post { cameraXManager.startCamera(this) }
-            } else {
-                ActivityCompat.requestPermissions(
-                    this,
-                    REQUIRED_PERMISSIONS,
-                    REQUEST_CODE_PERMISSIONS
-                )
-            }
+            cameraView.visibility = View.VISIBLE
+            mainView.visibility = View.GONE
+            finderView.post { cameraXManager.startCamera(this) }
             true
         }
-        viewFinder.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+
+        finderView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             cameraXManager.updateTransform()
         }
-        findViewById<ImageButton>(R.id.capture_button).setOnClickListener {
+
+        captureButton.setOnClickListener {
             cameraView.visibility = View.GONE
             mainView.visibility = View.VISIBLE
-            cameraXManager.takePicture(createImageFile()) { file ->
-                file.path?.split("/")?.last()?.run {
+            cameraXManager.takePicture(createImageFile()) {
+                it.path.split("/").last().run {
                     val photoRef = storageReference.child(this)
-                    handleResponse(photoRef.putFile(Uri.fromFile(file)))
+                    handleResponse(photoRef.putFile(Uri.fromFile(it)))
                 }
             }
         }
     }
 
     private fun firebaseInit() {
-        firebaseDatabase = FirebaseDatabase.getInstance()
-        firebaseAuth = FirebaseAuth.getInstance()
-        firebaseStorage = FirebaseStorage.getInstance()
-        remoteConfigManager =
-            RemoteConfigManager(PreferenceManager.getDefaultSharedPreferences(applicationContext))
 
         databaseReference = firebaseDatabase.reference.child("messages")
         storageReference = firebaseStorage.reference.child("chat_photos")
 
-        authStateListener = FirebaseAuth.AuthStateListener {
-            val user = it.currentUser
+        provider.onClearList = {
+            listAdapter.clearData()
+        }
 
-            when (user) {
-                null -> {
-                    onSignedOutCleanUp()
+        provider.onItemUpdate = {
+            listAdapter.setMessages(it)
+        }
 
-                    val providers = mutableListOf(
-                        AuthUI.IdpConfig.EmailBuilder().build(),
-                        AuthUI.IdpConfig.GoogleBuilder().build()
-                    )
-
-                    // Create and launch sign-in intent
-                    startActivityForResult(
-                        AuthUI.getInstance()
-                            .createSignInIntentBuilder()
-                            .setIsSmartLockEnabled(false)
-                            .setAvailableProviders(providers)
-                            .setTheme(R.style.ThemeOverlay_AppCompat_Dark)
-                            .setLogo(R.drawable.ic_android)
-                            .build(), RC_SIGN_IN
-                    )
-                }
-                else -> onSignedInInitialize(user.displayName)
-            }
+        provider.onNotifyList = {
+            listAdapter.notifyDataSetChanged()
+            progressBar.visibility = ProgressBar.INVISIBLE
         }
 
         remoteConfigManager.fetchAndActivate {
@@ -158,10 +133,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun applyRetrievedLengthLimit(messageLength: Long) {
-        messageEditText.filters =
-            arrayOf<InputFilter>(InputFilter.LengthFilter(messageLength.toInt()))
-    }
+    private fun applyRetrievedLengthLimit(messageLength: Long) =
+        messageEditText.also {
+            it.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(messageLength.toInt()))
+        }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -183,40 +158,37 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             RC_PHOTO_CAMERA ->
-                if (resultCode == Activity.RESULT_OK) {
-                    currentPhotoPath?.split("/")?.last()?.run {
-                        val photoRef = storageReference.child(this)
-                        handleResponse(photoRef.putFile(Uri.fromFile(File(currentPhotoPath))))
+                when (resultCode) {
+                    Activity.RESULT_OK -> {
+                        currentPhotoPath?.split("/")?.last()?.run {
+                            val photoRef = storageReference.child(this)
+                            handleResponse(photoRef.putFile(Uri.fromFile(File(currentPhotoPath))))
+                        }
                     }
                 }
         }
     }
 
-    private fun handleResponse(uploadTask: UploadTask) {
+    private fun handleResponse(uploadTask: UploadTask) =
         uploadTask.addOnSuccessListener { taskSnapshot ->
             Handler().postDelayed({ downloadProgress.progress = 0 }, 5000)
-            taskSnapshot.metadata?.reference?.downloadUrl?.addOnSuccessListener { uri ->
-                val message = Message(null, username, uri.toString())
-                databaseReference.push().setValue(message)
+            taskSnapshot.metadata?.reference?.downloadUrl?.addOnSuccessListener {
+                databaseReference.push()
+                    .setValue(Message(null, userPreferences.username ?: "Anonymous", it.toString()))
             }
         }.addOnProgressListener {
             downloadProgress.progress =
                 with(it) { (100 * bytesTransferred / totalByteCount).toInt() }
         }
-    }
 
     private fun initView() {
-        listAdapter = ListAdapter()
         messageRecyclerView.adapter = listAdapter
-        messageEditText.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(charSequence: CharSequence, i: Int, i1: Int, i2: Int) {}
-
-            override fun onTextChanged(charSequence: CharSequence, i: Int, i1: Int, i2: Int) {
-                sendButton.isEnabled = charSequence.toString().trim { it <= ' ' }.isNotEmpty()
+        messageEditText.addTextChangedListener(object: SimpleTextWatcher() {
+            override fun onTextChanged(charSequence: CharSequence, start: Int, before: Int, count: Int) {
+                sendButton.isEnabled = charSequence.trim { it <= ' ' }.isNotEmpty()
             }
-
-            override fun afterTextChanged(editable: Editable) {}
         })
+
         listAdapter.onDeleteClick = { photoUrl, key ->
             val photoRef = firebaseStorage.getReferenceFromUrl(photoUrl)
             photoRef.delete().addOnSuccessListener {
@@ -226,64 +198,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        firebaseAuth.addAuthStateListener(authStateListener!!)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        authStateListener?.let {
-            firebaseAuth.removeAuthStateListener(it)
-        }
-        detachDatabaseReadListener()
-    }
-
-    private fun onSignedInInitialize(name: String?) {
-        username = name.toString()
-
-        valueEventListener = object : ValueEventListener {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-
-                listAdapter.clearData()
-
-                dataSnapshot.children.forEach(
-                    fun(dataSnapshot: DataSnapshot) {
-                        val message = dataSnapshot.getValue<Message>(Message::class.java)
-                        message?.let {
-                            it.key = dataSnapshot.key
-                            listAdapter.swapData(message)
-                        }
-                    }
-                )
-
-                listAdapter.notifyDataSetChanged()
-                progressBar.visibility = ProgressBar.INVISIBLE
-            }
-
-            override fun onCancelled(databaseError: DatabaseError) {}
-        }
-        databaseReference.addValueEventListener(valueEventListener!!)
-    }
-
-    private fun onSignedOutCleanUp() {
-        username = ANONYMOUS
-        detachDatabaseReadListener()
-    }
-
-    private fun detachDatabaseReadListener() {
-        listAdapter.clearData()
-        valueEventListener?.let {
-            databaseReference.removeEventListener(it)
-        }
-    }
-
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
         return true
     }
 
-    override fun onOptionsItemSelected(item: MenuItem?): Boolean = when (item?.itemId) {
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         R.id.sign_out_menu -> {
             AuthUI.getInstance().signOut(this)
             true
@@ -292,26 +212,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun onClickSendButton(view: View) {
-        val message = Message(messageEditText.text.toString(), username)
-        databaseReference.push().setValue(message)
-
+        databaseReference.push().setValue(Message(messageEditText.text.toString(), userPreferences.username ?: "Anonymous"))
         messageEditText.setText("")
     }
 
-    fun onClickUploadImage(view: View) {
-        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            type = "image/jpeg"
-            putExtra(Intent.EXTRA_LOCAL_ONLY, true)
-        }
-        startActivityForResult(Intent.createChooser(intent, "Complete action"), RC_PHOTO_PICKER)
-    }
-
-    fun onClickUploadCamera(view: View) {
-        if (allPermissionsGranted()) {
-            startActivityForResult(intentCameraManager.getIntent(this), RC_PHOTO_CAMERA)
-        } else {
-            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
-        }
+    fun onClickUploadImage(view: View) = Intent(Intent.ACTION_GET_CONTENT).apply {
+        type = "image/jpeg"
+        putExtra(Intent.EXTRA_LOCAL_ONLY, true)
+        startActivityForResult(Intent.createChooser(this, "Complete action"), RC_PHOTO_PICKER)
     }
 
     @Throws(IOException::class)
@@ -329,33 +237,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Process result from permission request dialog box, has the request
-     * been granted? If yes, start Camera. Otherwise display a toast
-     */
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<String>, grantResults: IntArray
-    ) {
-        if (requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (allPermissionsGranted()) {
-                viewFinder.post { cameraXManager.startCamera(this) }
-            } else {
-                Toast.makeText(
-                    this,
-                    "Permissions not granted by the user.",
-                    Toast.LENGTH_SHORT
-                ).show()
-                finish()
-            }
-        }
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        onRequestPermissionsResult(requestCode, grantResults)
     }
 
-    /**
-     * Check if all permission specified in the manifest have been granted
-     */
-    private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
-        ContextCompat.checkSelfPermission(
-            baseContext, it
-        ) == PackageManager.PERMISSION_GRANTED
+    @OnPermissionDenied(Manifest.permission.CAMERA)
+    fun onCameraPermissionDenied() {
+        Toast.makeText(this, "Permissions not granted by the user.", Toast.LENGTH_SHORT).show()
     }
 }
