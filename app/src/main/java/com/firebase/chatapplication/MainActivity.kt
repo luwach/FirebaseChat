@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.text.InputFilter
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -27,6 +28,7 @@ import com.firebase.chatapplication.utils.SimpleTextWatcher
 import com.firebase.ui.auth.AuthUI
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.iid.FirebaseInstanceId
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import com.google.firebase.storage.UploadTask
@@ -78,13 +80,13 @@ class MainActivity: AppCompatActivity(), KoinComponent {
         cameraPickerButton.setOnLongClickListener {
             cameraView.visibility = View.VISIBLE
             mainView.visibility = View.GONE
-            finderView.post { cameraXManager.startCamera(this) }
+//            finderView.post { cameraXManager.startCamera(this) }
             true
         }
 
-        finderView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            cameraXManager.updateTransform()
-        }
+//        finderView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+//            cameraXManager.updateTransform()
+//        }
 
         captureButton.setOnClickListener {
             cameraView.visibility = View.GONE
@@ -103,24 +105,30 @@ class MainActivity: AppCompatActivity(), KoinComponent {
         databaseReference = firebaseDatabase.reference.child("messages")
         storageReference = firebaseStorage.reference.child("chat_photos")
 
+        FirebaseInstanceId.getInstance().instanceId.addOnSuccessListener {
+            Log.d("MyToken", "FCM token: ${it.token}")
+        }
+
         provider.onItemsUpdate = {
             listAdapter.setMessages(it)
             progressBar.visibility = ProgressBar.INVISIBLE
         }
 
-//        remoteConfigManager.fetchAndActivate {
-//            if (it) {
-//                Log.d("###", "isForceUpdate = ${remoteConfigManager.isUpdateRequired()}")
-//                if (remoteConfigManager.isUpdateRequired())
-//                    ForceUpdateDialogFragment().show(
-//                        supportFragmentManager,
-//                        "ForceUpdateDialogFragment"
-//                    )
-//            } else {
-//                Toast.makeText(this, "Remote config fetch failed!", Toast.LENGTH_SHORT).show()
-//            }
-//            applyRetrievedLengthLimit(remoteConfigManager.getMsgLength())
-//        }
+        /*
+        remoteConfigManager.fetchAndActivate {
+            if (it) {
+                Log.d("###", "isForceUpdate = ${remoteConfigManager.isUpdateRequired()}")
+                if (remoteConfigManager.isUpdateRequired())
+                    ForceUpdateDialogFragment().show(
+                        supportFragmentManager,
+                        "ForceUpdateDialogFragment"
+                    )
+            } else {
+                Toast.makeText(this, "Remote config fetch failed!", Toast.LENGTH_SHORT).show()
+            }
+            applyRetrievedLengthLimit(remoteConfigManager.getMsgLength())
+        }
+        */
     }
 
     private fun applyRetrievedLengthLimit(messageLength: Long) =

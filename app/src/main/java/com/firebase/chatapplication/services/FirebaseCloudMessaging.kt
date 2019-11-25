@@ -1,8 +1,9 @@
 package com.firebase.chatapplication.services
 
 import android.preference.PreferenceManager
-import com.firebase.chatapplication.utils.Constants.CONFIG_STALE_KEY
+import android.util.Log
 import com.firebase.chatapplication.R
+import com.firebase.chatapplication.utils.Constants.CONFIG_STALE_KEY
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -14,17 +15,17 @@ class FirebaseCloudMessaging: FirebaseMessagingService() {
 
         // Subscribe for remote config push topic
         FirebaseMessaging.getInstance().subscribeToTopic(applicationContext.getString(R.string.topic_push_remote_config))
+        FirebaseMessaging.getInstance().subscribeToTopic(applicationContext.getString(R.string.topic_random))
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        handleRemoteMessage(remoteMessage)
-    }
-
-    private fun handleRemoteMessage(remoteMessage: RemoteMessage) =
         if (remoteMessage.data[CONFIG_STALE_KEY] == "true") {
             PreferenceManager.getDefaultSharedPreferences(applicationContext).edit()
                 .putBoolean(CONFIG_STALE_KEY, true).apply()
         } else {
-            // TODO create notification for the message
+            remoteMessage.data?.let {
+                Log.d("DataPayload", "Message data payload: ${remoteMessage.data}")
+            }
         }
+    }
 }

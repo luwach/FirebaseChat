@@ -15,4 +15,7 @@ object Constants {
     const val DEFAULT_MIN_REQ_VERSION = 1
 
     const val CACHE_EXPIRATION_TIME = 3600L  // s
+
+    const val CHANNEL_1_ID = "channel1"
+    const val CHANNEL_2_ID = "channel2"
 }
