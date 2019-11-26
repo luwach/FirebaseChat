@@ -12,16 +12,12 @@ import kotlinx.android.synthetic.main.item_message.*
 
 class ListAdapter: RecyclerView.Adapter<DataViewHolder>() {
 
-    private val messages = ArrayList<Message>()
+    private var messages = emptyList<Message>()
     var onDeleteClick: ((String, String) -> Unit)? = null
 
-    fun setMessages(message: Message) {
-        messages.add(message)
+    fun setMessages(newMessages: List<Message>) {
+        messages = newMessages
         notifyDataSetChanged()
-    }
-
-    fun clearData() {
-        messages.clear()
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = DataViewHolder(parent)

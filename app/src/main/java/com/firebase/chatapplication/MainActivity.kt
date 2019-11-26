@@ -25,10 +25,10 @@ import com.firebase.chatapplication.utils.Constants.RC_PHOTO_CAMERA
 import com.firebase.chatapplication.utils.Constants.RC_PHOTO_PICKER
 import com.firebase.chatapplication.utils.Constants.RC_SIGN_IN
 import com.firebase.chatapplication.utils.SimpleTextWatcher
-import com.firebase.chatapplication.view.ForceUpdateDialogFragment
 import com.firebase.ui.auth.AuthUI
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.iid.FirebaseInstanceId
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import com.google.firebase.storage.UploadTask
@@ -80,13 +80,13 @@ class MainActivity: AppCompatActivity(), KoinComponent {
         cameraPickerButton.setOnLongClickListener {
             cameraView.visibility = View.VISIBLE
             mainView.visibility = View.GONE
-            finderView.post { cameraXManager.startCamera(this) }
+//            finderView.post { cameraXManager.startCamera(this) }
             true
         }
 
-        finderView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            cameraXManager.updateTransform()
-        }
+//        finderView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+//            cameraXManager.updateTransform()
+//        }
 
         captureButton.setOnClickListener {
             cameraView.visibility = View.GONE
@@ -105,19 +105,16 @@ class MainActivity: AppCompatActivity(), KoinComponent {
         databaseReference = firebaseDatabase.reference.child("messages")
         storageReference = firebaseStorage.reference.child("chat_photos")
 
-        provider.onClearList = {
-            listAdapter.clearData()
+        FirebaseInstanceId.getInstance().instanceId.addOnSuccessListener {
+            Log.d("MyToken", "FCM token: ${it.token}")
         }
 
-        provider.onItemUpdate = {
+        provider.onItemsUpdate = {
             listAdapter.setMessages(it)
-        }
-
-        provider.onNotifyList = {
-            listAdapter.notifyDataSetChanged()
             progressBar.visibility = ProgressBar.INVISIBLE
         }
 
+        /*
         remoteConfigManager.fetchAndActivate {
             if (it) {
                 Log.d("###", "isForceUpdate = ${remoteConfigManager.isUpdateRequired()}")
@@ -131,6 +128,7 @@ class MainActivity: AppCompatActivity(), KoinComponent {
             }
             applyRetrievedLengthLimit(remoteConfigManager.getMsgLength())
         }
+        */
     }
 
     private fun applyRetrievedLengthLimit(messageLength: Long) =
@@ -212,7 +210,11 @@ class MainActivity: AppCompatActivity(), KoinComponent {
     }
 
     fun onClickSendButton(view: View) {
-        databaseReference.push().setValue(Message(messageEditText.text.toString(), userPreferences.username ?: "Anonymous"))
+        databaseReference.push().setValue(
+            Message(
+                messageEditText.text.toString(), userPreferences.username ?: "Anonymous"
+            )
+        )
         messageEditText.setText("")
     }
 

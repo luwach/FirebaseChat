@@ -20,12 +20,11 @@ class SignInProvider(
     private val activity: MainActivity
 ): LifecycleObserver, KoinComponent {
 
+    private var messages = ArrayList<Message>()
     private var authStateListener: FirebaseAuth.AuthStateListener? = null
     private var valueEventListener: ValueEventListener? = null
     private lateinit var databaseReference: DatabaseReference
-    lateinit var onClearList: (Unit) -> (Unit)
-    lateinit var onItemUpdate: (Message) -> Unit
-    lateinit var onNotifyList: (Unit) -> (Unit)
+    lateinit var onItemsUpdate: (List<Message>) -> Unit
 
     fun init(lifecycle: Lifecycle) {
         lifecycle.addObserver(this)
@@ -70,18 +69,18 @@ class SignInProvider(
         valueEventListener = object: ValueEventListener {
             override fun onDataChange(dataSnapshot: DataSnapshot) {
 
-                onClearList.invoke(Unit)
+                messages.clear()
 
                 dataSnapshot.children.forEach(
                     fun(dataSnapshot: DataSnapshot) {
                         val message = dataSnapshot.getValue<Message>(Message::class.java)
                         message?.let {
                             it.key = dataSnapshot.key
-                            onItemUpdate.invoke(it)
+                            messages.add(it)
                         }
                     }
                 )
-                onNotifyList.invoke(Unit)
+                onItemsUpdate.invoke(messages)
             }
 
             override fun onCancelled(databaseError: DatabaseError) {}
