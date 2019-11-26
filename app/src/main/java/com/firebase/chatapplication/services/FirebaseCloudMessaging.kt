@@ -24,8 +24,12 @@ class FirebaseCloudMessaging: FirebaseMessagingService() {
                 .putBoolean(CONFIG_STALE_KEY, true).apply()
         } else {
             remoteMessage.data?.let {
-                Log.d("DataPayload", "Message data payload: ${remoteMessage.data}")
+                Log.d(TAG, "Message data payload: ${remoteMessage.data}")
             }
         }
+    }
+
+    companion object {
+        const val TAG = "FirebaseCloudMessaging"
     }
 }

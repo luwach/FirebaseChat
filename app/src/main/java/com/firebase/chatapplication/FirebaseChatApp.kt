@@ -26,10 +26,10 @@ class FirebaseChatApp: Application() {
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 
-            val channel1 = NotificationChannel(CHANNEL_1_ID, "Channel 1", NotificationManager.IMPORTANCE_HIGH)
+            val channel1 = NotificationChannel(CHANNEL_1_ID, "Default channel", NotificationManager.IMPORTANCE_HIGH)
                 .also { it.description = "This is Channel 1" }
 
-            val channel2 = NotificationChannel(CHANNEL_2_ID, "Channel 2", NotificationManager.IMPORTANCE_DEFAULT)
+            val channel2 = NotificationChannel(CHANNEL_2_ID, "Urgent channel", NotificationManager.IMPORTANCE_DEFAULT)
                 .also { it.description = "This is Channel 2" }
 
             getSystemService(NotificationManager::class.java).apply {
