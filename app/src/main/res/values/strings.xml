@@ -8,4 +8,10 @@
     <string name="force_update_text">Force update is required</string>
     <string name="update_now_text">Update now</string>
     <string name="channel_1_notification_id" translatable="false">channel1</string>
+
+    <string name="default_notification_title">Default title</string>
+    <string name="default_notification_desc">Default description</string>
+    <string name="geofence_enter_notification_desc">Welcome to %1$s!</string>
+    <string name="geofence_exit_notification_desc">Thank you for visiting the %1$s!</string>
+    <string name="geofence_main_office">Accenture Sienna Office</string>
 </resources>

@@ -16,6 +16,16 @@ object Constants {
 
     const val CACHE_EXPIRATION_TIME = 3600L  // s
 
+    const val NOTIFICATION_ID_GEOFENCE = 20012
+
     const val CHANNEL_1_ID = "channel1"
     const val CHANNEL_2_ID = "channel2"
+    const val GEOFENCE_NOTIFICATION_CHANNEL_ID = "notification_geofence_channel"
+
+    const val GEOFENCE_NOTIFICATION_CHANNEL_NAME = "Notification geofence channel"
+
+    const val GEOFENCE_OFFICE_ID = "acc_sienna_office"
+    const val GEOFENCE_OFFICE_LAT = 52.231731
+    const val GEOFENCE_OFFICE_LON = 21.002072
+    const val GEOFENCE_OFFICE_RADIUS = 300f // in meters
 }
