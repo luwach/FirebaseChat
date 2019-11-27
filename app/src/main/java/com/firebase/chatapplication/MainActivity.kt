@@ -68,23 +68,19 @@ class MainActivity : AppCompatActivity(), KoinComponent {
         setContentView(R.layout.activity_main)
 
         provider.init(this.lifecycle)
-        initCameraXWithPermissionCheck()
+        initGeoFenceWithPermissionCheck()
         firebaseInit()
         initView()
-        initGeoFence()
+        initCameraX()
     }
 
-    @NeedsPermission(Manifest.permission.CAMERA)
     fun initCameraX() {
-
         cameraPickerButton.setOnClickListener {
-            startActivityForResult(intentCameraManager.getIntent(this), RC_PHOTO_CAMERA)
+            openCameraWithPermissionCheck(false)
         }
 
         cameraPickerButton.setOnLongClickListener {
-            cameraView.visibility = View.VISIBLE
-            mainView.visibility = View.GONE
-//            finderView.post { cameraXManager.startCamera(this) }
+            openCameraWithPermissionCheck(true)
             true
         }
 
@@ -110,6 +106,17 @@ class MainActivity : AppCompatActivity(), KoinComponent {
     )
     fun initGeoFence() {
         geofenceManager.addGeofences()
+    }
+
+    @NeedsPermission(Manifest.permission.CAMERA)
+    fun openCamera(inApp: Boolean) {
+        if (inApp) {
+            cameraView.visibility = View.VISIBLE
+            mainView.visibility = View.GONE
+//            finderView.post { cameraXManager.startCamera(this) }
+        } else {
+            startActivityForResult(intentCameraManager.getIntent(this), RC_PHOTO_CAMERA)
+        }
     }
 
     private fun firebaseInit() {
