@@ -13,12 +13,6 @@ val providersModule = module {
 
     single { (activity: MainActivity) -> SignInProvider(get(), get(), get(), activity) }
     single { IntentCameraManager() }
-    single { (activity: MainActivity) ->
-        GeofenceManager(
-            LocationServices.getGeofencingClient(
-                activity.applicationContext
-            ), activity.applicationContext
-        )
-    }
+    single { GeofenceManager(LocationServices.getGeofencingClient(get()), get()) }
     single { (finderView: TextureView) -> CameraXManager(finderView) }
 }
