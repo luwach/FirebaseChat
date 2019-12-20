@@ -1,7 +1,6 @@
 package com.firebase.chatapplication
 
 import android.app.Application
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
 import com.firebase.chatapplication.di.firebaseModule
@@ -9,10 +8,13 @@ import com.firebase.chatapplication.di.providersModule
 import com.firebase.chatapplication.di.repositoriesModule
 import com.firebase.chatapplication.utils.Constants.CHANNEL_1_ID
 import com.firebase.chatapplication.utils.Constants.CHANNEL_2_ID
+import com.firebase.chatapplication.utils.Constants.GEOFENCE_NOTIFICATION_CHANNEL_ID
+import com.firebase.chatapplication.utils.Constants.GEOFENCE_NOTIFICATION_CHANNEL_NAME
+import com.firebase.chatapplication.utils.createNotificationChannel
 import org.koin.android.ext.android.startKoin
 
 
-class FirebaseChatApp: Application() {
+class FirebaseChatApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
@@ -25,17 +27,22 @@ class FirebaseChatApp: Application() {
 
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-
-            val channel1 = NotificationChannel(CHANNEL_1_ID, "Default channel", NotificationManager.IMPORTANCE_HIGH)
-                .also { it.description = "This is Channel 1" }
-
-            val channel2 = NotificationChannel(CHANNEL_2_ID, "Urgent channel", NotificationManager.IMPORTANCE_DEFAULT)
-                .also { it.description = "This is Channel 2" }
-
-            getSystemService(NotificationManager::class.java).apply {
-                this?.createNotificationChannel(channel1)
-                this?.createNotificationChannel(channel2)
-            }
+            createNotificationChannel(
+                listOf(
+                    Triple(CHANNEL_2_ID, "Urgent channel", "This is Channel 2"),
+                    Triple(
+                        GEOFENCE_NOTIFICATION_CHANNEL_ID,
+                        GEOFENCE_NOTIFICATION_CHANNEL_NAME,
+                        "This is $GEOFENCE_NOTIFICATION_CHANNEL_NAME"
+                    )
+                ), NotificationManager.IMPORTANCE_DEFAULT
+            )
+            createNotificationChannel(
+                CHANNEL_1_ID,
+                "Default channel",
+                "This is Channel 1",
+                NotificationManager.IMPORTANCE_HIGH
+            )
         }
     }
 

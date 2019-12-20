@@ -16,6 +16,7 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.firebase.chatapplication.managers.CameraXManager
+import com.firebase.chatapplication.managers.GeofenceManager
 import com.firebase.chatapplication.managers.IntentCameraManager
 import com.firebase.chatapplication.managers.RemoteConfigManager
 import com.firebase.chatapplication.model.Message
@@ -25,6 +26,7 @@ import com.firebase.chatapplication.utils.Constants.RC_PHOTO_CAMERA
 import com.firebase.chatapplication.utils.Constants.RC_PHOTO_PICKER
 import com.firebase.chatapplication.utils.Constants.RC_SIGN_IN
 import com.firebase.chatapplication.utils.SimpleTextWatcher
+import com.firebase.chatapplication.view.ForceUpdateDialogFragment
 import com.firebase.ui.auth.AuthUI
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
@@ -45,7 +47,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @RuntimePermissions
-class MainActivity: AppCompatActivity(), KoinComponent {
+class MainActivity : AppCompatActivity(), KoinComponent {
 
     private val firebaseDatabase: FirebaseDatabase by inject()
     private val firebaseStorage: FirebaseStorage by inject()
@@ -54,6 +56,7 @@ class MainActivity: AppCompatActivity(), KoinComponent {
     private val userPreferences: UserPreferences by inject()
     private val remoteConfigManager: RemoteConfigManager by inject()
     private val intentCameraManager: IntentCameraManager by inject()
+    private val geofenceManager: GeofenceManager by inject { parametersOf(this@MainActivity) }
 
     private var currentPhotoPath: String? = null
     private val listAdapter = ListAdapter()
@@ -65,22 +68,19 @@ class MainActivity: AppCompatActivity(), KoinComponent {
         setContentView(R.layout.activity_main)
 
         provider.init(this.lifecycle)
-        initCameraXWithPermissionCheck()
+        initGeoFenceWithPermissionCheck()
         firebaseInit()
         initView()
+        initCameraX()
     }
 
-    @NeedsPermission(Manifest.permission.CAMERA)
     fun initCameraX() {
-
         cameraPickerButton.setOnClickListener {
-            startActivityForResult(intentCameraManager.getIntent(this), RC_PHOTO_CAMERA)
+            openCameraWithPermissionCheck(false)
         }
 
         cameraPickerButton.setOnLongClickListener {
-            cameraView.visibility = View.VISIBLE
-            mainView.visibility = View.GONE
-//            finderView.post { cameraXManager.startCamera(this) }
+            openCameraWithPermissionCheck(true)
             true
         }
 
@@ -100,6 +100,25 @@ class MainActivity: AppCompatActivity(), KoinComponent {
         }
     }
 
+    @NeedsPermission(
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_BACKGROUND_LOCATION
+    )
+    fun initGeoFence() {
+        geofenceManager.addGeofences()
+    }
+
+    @NeedsPermission(Manifest.permission.CAMERA)
+    fun openCamera(inApp: Boolean) {
+        if (inApp) {
+            cameraView.visibility = View.VISIBLE
+            mainView.visibility = View.GONE
+//            finderView.post { cameraXManager.startCamera(this) }
+        } else {
+            startActivityForResult(intentCameraManager.getIntent(this), RC_PHOTO_CAMERA)
+        }
+    }
+
     private fun firebaseInit() {
 
         databaseReference = firebaseDatabase.reference.child("messages")
@@ -114,7 +133,6 @@ class MainActivity: AppCompatActivity(), KoinComponent {
             progressBar.visibility = ProgressBar.INVISIBLE
         }
 
-        /*
         remoteConfigManager.fetchAndActivate {
             if (it) {
                 Log.d("###", "isForceUpdate = ${remoteConfigManager.isUpdateRequired()}")
@@ -128,7 +146,6 @@ class MainActivity: AppCompatActivity(), KoinComponent {
             }
             applyRetrievedLengthLimit(remoteConfigManager.getMsgLength())
         }
-        */
     }
 
     private fun applyRetrievedLengthLimit(messageLength: Long) =
@@ -181,8 +198,13 @@ class MainActivity: AppCompatActivity(), KoinComponent {
 
     private fun initView() {
         messageRecyclerView.adapter = listAdapter
-        messageEditText.addTextChangedListener(object: SimpleTextWatcher() {
-            override fun onTextChanged(charSequence: CharSequence, start: Int, before: Int, count: Int) {
+        messageEditText.addTextChangedListener(object : SimpleTextWatcher() {
+            override fun onTextChanged(
+                charSequence: CharSequence,
+                start: Int,
+                before: Int,
+                count: Int
+            ) {
                 sendButton.isEnabled = charSequence.trim { it <= ' ' }.isNotEmpty()
             }
         })
@@ -239,7 +261,11 @@ class MainActivity: AppCompatActivity(), KoinComponent {
         }
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         onRequestPermissionsResult(requestCode, grantResults)
     }
